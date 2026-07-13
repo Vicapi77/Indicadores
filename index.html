@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tableros de Tendencias | Traxion</title>
+<style>
+:root{
+  --verde:#1D9E75;
+  --azul:#2E86E8;
+  --fondo-oscuro:#071019;
+  --panel:#0F1B2A;
+  --borde:#1E2E42;
+  --texto-claro:#EAF2F6;
+  --texto-tenue:#93A6B8;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:radial-gradient(circle at top left,#0d1f2e 0%,var(--fondo-oscuro) 55%);
+  color:var(--texto-claro);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  padding:60px 20px;
+}
+.eyebrow{
+  font-size:11px;letter-spacing:4px;text-transform:uppercase;color:var(--texto-tenue);font-weight:700;margin-bottom:10px;
+}
+h1{margin:0 0 8px;font-size:28px;text-align:center;}
+.subtitle{color:var(--texto-tenue);font-size:14px;margin-bottom:48px;text-align:center;max-width:480px;}
+.cards{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:24px;
+  width:100%;
+  max-width:820px;
+}
+.card{
+  position:relative;
+  background:linear-gradient(160deg,var(--panel),#0A1420);
+  border:1px solid var(--borde);
+  border-radius:16px;
+  padding:32px 28px;
+  text-decoration:none;
+  color:var(--texto-claro);
+  transition:.2s;
+  overflow:hidden;
+}
+.card:hover{transform:translateY(-4px);box-shadow:0 14px 34px rgba(0,0,0,.4);}
+.card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:4px;
+}
+.card.lipu::before{background:var(--verde);}
+.card.settepi::before{background:var(--azul);}
+.card .tag{
+  font-size:10.5px;letter-spacing:2px;text-transform:uppercase;font-weight:700;margin-bottom:10px;display:block;
+}
+.card.lipu .tag{color:var(--verde);}
+.card.settepi .tag{color:var(--azul);}
+.card h2{margin:0 0 10px;font-size:21px;}
+.card p{margin:0 0 22px;font-size:13px;color:var(--texto-tenue);line-height:1.5;}
+.card .go{
+  font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;
+}
+.card.lipu .go{color:var(--verde);}
+.card.settepi .go{color:var(--azul);}
+.card .go svg{transition:.2s;}
+.card:hover .go svg{transform:translateX(4px);}
+footer{margin-top:56px;font-size:11.5px;color:var(--texto-tenue);text-align:center;}
+</style>
+</head>
+<body>
+
+<span class="eyebrow">Traxion · Indicadores Operativos</span>
+<h1>Tableros de Tendencias</h1>
+<p class="subtitle">Selecciona la Unidad de Negocio para ver el detalle de indicadores, tendencias y evolución semanal.</p>
+
+<div class="cards">
+  <a class="card lipu" href="lipu.html">
+    <span class="tag">Unidad de Negocio</span>
+    <h2>LIPU</h2>
+    <p>Seguridad, operación, personal, servicio y satisfacción — actualizado en vivo desde Google Sheets.</p>
+    <span class="go">Ver tablero
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+    </span>
+  </a>
+
+  <a class="card settepi" href="settepi.html">
+    <span class="tag">Unidad de Negocio</span>
+    <h2>SETTEPI</h2>
+    <p>Seguridad, operación, personal, servicio y satisfacción — actualizado en vivo desde Google Sheets.</p>
+    <span class="go">Ver tablero
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+    </span>
+  </a>
+</div>
+
+<footer>Los datos se sincronizan automáticamente desde su respectiva hoja de Google Sheets.</footer>
+
+</body>
+</html>
