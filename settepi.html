@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SETTEPI | Tablero de Tendencias</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+  --azul-settepi:#2E86E8;
+  --azul-oscuro:#0B2A4A;
+  --azul-mas-oscuro:#061A2E;
+  --azul-panel:#0F3A5C;
+  --azul-borde:#1E5F8C;
+  --texto-claro:#EAF6F0;
+  --texto-tenue:#9FC6B6;
+  --positivo:#3ED598;
+  --negativo:#FF6B6B;
+  --neutro:#C9C9C9;
+  --advertencia:#FFA94D;
+  --fondo:#071627;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:radial-gradient(circle at top left,#0d2f4a 0%,var(--fondo) 55%);
+  color:var(--texto-claro);
+  min-height:100vh;
+}
+header.banner{
+  background:linear-gradient(120deg,var(--azul-mas-oscuro),var(--azul-oscuro) 60%,var(--azul-panel));
+  padding:22px 28px;
+  border-bottom:3px solid var(--azul-settepi);
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  flex-wrap:wrap;
+  gap:14px;
+}
+.brand{display:flex;flex-direction:column;gap:4px;}
+.brand .tag{
+  font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--azul-settepi);font-weight:700;
+}
+.brand h1{margin:0;font-size:24px;font-weight:700;letter-spacing:.3px;}
+.brand .sub{font-size:12.5px;color:var(--texto-tenue);}
+.header-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.btn{
+  background:var(--azul-settepi);
+  color:#04182b;
+  border:none;
+  padding:9px 16px;
+  border-radius:8px;
+  font-weight:700;
+  font-size:12.5px;
+  cursor:pointer;
+  transition:.15s;
+  white-space:nowrap;
+}
+.btn:hover{background:#4A9BF0;transform:translateY(-1px);}
+.btn.secondary{background:transparent;border:1px solid var(--azul-borde);color:var(--texto-claro);}
+.btn.secondary:hover{background:var(--azul-panel);}
+#fileInput{display:none;}
+.updated-note{font-size:11px;color:var(--texto-tenue);}
+.conn-status{font-size:11.5px;font-weight:700;letter-spacing:.3px;}
+
+main{padding:22px 28px 60px;max-width:1400px;margin:0 auto;}
+
+/* Summary strip */
+.summary-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;
+}
+.summary-card{
+  background:var(--azul-panel);
+  border:1px solid var(--azul-borde);
+  border-radius:12px;
+  padding:16px 18px;
+  position:relative;
+  overflow:hidden;
+}
+.summary-card .num{font-size:30px;font-weight:800;line-height:1;}
+.summary-card .lbl{font-size:12px;color:var(--texto-tenue);margin-top:6px;}
+.summary-card.pos .num{color:var(--positivo);}
+.summary-card.neg .num{color:var(--negativo);}
+.summary-card.neu .num{color:var(--neutro);}
+.summary-card.tot .num{color:var(--texto-claro);}
+.summary-card::after{
+  content:'';position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;
+  background:rgba(255,255,255,.03);
+}
+
+/* Highlights */
+.highlights{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:26px;}
+.hl-box{background:var(--azul-panel);border:1px solid var(--azul-borde);border-radius:12px;padding:16px 18px;}
+.hl-box h3{margin:0 0 10px;font-size:13px;text-transform:uppercase;letter-spacing:1px;}
+.hl-box.up h3{color:var(--positivo);}
+.hl-box.down h3{color:var(--negativo);}
+.hl-item{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.08);font-size:13px;cursor:pointer;}
+.hl-item:last-child{border-bottom:none;}
+.hl-item .delta{font-weight:700;font-size:12.5px;}
+.hl-item.up .delta{color:var(--positivo);}
+.hl-item.down .delta{color:var(--negativo);}
+
+/* Controls */
+.controls{
+  display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;
+}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;}
+.tab{
+  background:transparent;border:1px solid var(--azul-borde);color:var(--texto-tenue);
+  padding:7px 14px;border-radius:20px;font-size:12.5px;cursor:pointer;transition:.15s;
+}
+.tab.active,.tab:hover{background:var(--azul-settepi);color:#04182b;border-color:var(--azul-settepi);font-weight:700;}
+.right-controls{display:flex;gap:10px;align-items:center;}
+select,input[type=text]{
+  background:var(--azul-mas-oscuro);border:1px solid var(--azul-borde);color:var(--texto-claro);
+  padding:7px 10px;border-radius:8px;font-size:12.5px;
+}
+
+/* Grid of cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:14px;}
+.card{
+  background:linear-gradient(160deg,var(--azul-panel),var(--azul-oscuro));
+  border:1px solid var(--azul-borde);
+  border-left:4px solid var(--neutro);
+  border-radius:10px;
+  padding:14px 16px;
+  cursor:pointer;
+  transition:.15s;
+}
+.card:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgba(0,0,0,.35);}
+.card.up{border-left-color:var(--positivo);}
+.card.down{border-left-color:var(--negativo);}
+.card.flat{border-left-color:var(--neutro);}
+.card .cat{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--texto-tenue);}
+.card .name{font-size:14px;font-weight:700;margin:3px 0 8px;min-height:34px;}
+.card .row{display:flex;justify-content:space-between;align-items:flex-end;}
+.card .value{font-size:22px;font-weight:800;}
+.card .delta{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:3px;}
+.card.up .delta{color:var(--positivo);}
+.card.down .delta{color:var(--negativo);}
+.card.flat .delta{color:var(--neutro);}
+.card canvas{margin-top:8px;height:44px !important;}
+.card .nodata{font-size:11.5px;color:var(--texto-tenue);font-style:italic;margin-top:10px;}
+
+/* Modal */
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(3,15,11,.75);backdrop-filter:blur(2px);
+  z-index:50;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.show{display:flex;}
+.modal{
+  background:var(--azul-oscuro);border:1px solid var(--azul-borde);border-radius:14px;
+  width:100%;max-width:720px;padding:22px 24px;max-height:88vh;overflow-y:auto;
+}
+.modal h2{margin:0 0 2px;font-size:19px;}
+.modal .modal-cat{font-size:11px;color:var(--texto-tenue);text-transform:uppercase;letter-spacing:1px;}
+.modal .polarity-note{font-size:12px;color:var(--advertencia);margin:8px 0 14px;}
+.modal-close{float:right;background:none;border:none;color:var(--texto-tenue);font-size:20px;cursor:pointer;}
+.modal-stats{display:flex;gap:18px;margin:14px 0 6px;flex-wrap:wrap;}
+.modal-stats div{background:var(--azul-panel);padding:8px 14px;border-radius:8px;font-size:12.5px;}
+.modal-stats b{display:block;font-size:17px;}
+.modal-chart-controls{display:flex;justify-content:flex-end;margin-top:10px;}
+.btn.small{padding:6px 12px;font-size:11.5px;}
+.btn.secondary.active{background:var(--advertencia);border-color:var(--advertencia);color:#2b1a00;font-weight:700;}
+.modal canvas{margin-top:10px;}
+
+footer{
+  text-align:center;padding:20px;color:var(--texto-tenue);font-size:11.5px;border-top:1px solid var(--azul-borde);
+}
+
+@media(max-width:700px){
+  .summary-grid{grid-template-columns:repeat(2,1fr);}
+  .highlights{grid-template-columns:1fr;}
+  header.banner{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<header class="banner">
+  <div class="brand">
+    <span class="tag">SETTEPI</span>
+    <h1>Tablero de Tendencias de Indicadores</h1>
+    <span class="sub" id="rangeLabel">Cargando rango de semanas…</span>
+  </div>
+  <div class="header-actions">
+    <span class="conn-status" id="connStatus">● Conectando…</span>
+    <span class="updated-note" id="updatedNote"></span>
+    <button class="btn" onclick="loadFromSheet(true)">⟳ Refrescar desde Sheets</button>
+    <button class="btn secondary" onclick="document.getElementById('fileInput').click()">Cargar Excel manual</button>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+  </div>
+</header>
+
+<main>
+
+  <div class="summary-grid">
+    <div class="summary-card tot"><div class="num" id="sTotal">0</div><div class="lbl">Indicadores monitoreados</div></div>
+    <div class="summary-card pos"><div class="num" id="sPos">0</div><div class="lbl">Con tendencia positiva</div></div>
+    <div class="summary-card neg"><div class="num" id="sNeg">0</div><div class="lbl">Con tendencia negativa</div></div>
+    <div class="summary-card neu"><div class="num" id="sNeu">0</div><div class="lbl">Estables / sin datos suficientes</div></div>
+  </div>
+
+  <div class="highlights">
+    <div class="hl-box up">
+      <h3>▲ Mayor mejora reciente</h3>
+      <div id="hlUp"></div>
+    </div>
+    <div class="hl-box down">
+      <h3>▼ Mayor deterioro reciente</h3>
+      <div id="hlDown"></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="tabs" id="tabs"></div>
+    <div class="right-controls">
+      <input type="text" id="searchBox" placeholder="Buscar indicador…">
+      <select id="sortSelect">
+        <option value="deltaDesc">Mayor mejora</option>
+        <option value="deltaAsc">Mayor deterioro</option>
+        <option value="alpha">Alfabético</option>
+        <option value="cat">Categoría</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+</main>
+
+<footer>Tablero generado a partir de Tendencia_Indicadores.xlsx · La tendencia compara el promedio de las semanas más recientes contra el bloque previo, considerando si el indicador mejora al subir o al bajar.</footer>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-cat" id="modalCat"></div>
+    <h2 id="modalTitle"></h2>
+    <div class="polarity-note" id="modalPolarity"></div>
+    <div class="modal-stats" id="modalStats"></div>
+    <div class="modal-chart-controls">
+      <button class="btn secondary small" id="trendBtn" onclick="toggleTrendline()">／ Mostrar línea de tendencia</button>
+    </div>
+    <canvas id="modalChart" height="110"></canvas>
+  </div>
+</div>
+
+<script>
+/* Registrar plugin de etiquetas de datos, mostrado SOLO en la gráfica del modal */
+if (window.ChartDataLabels) {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels', { display: false });
+}
+
+/* ---------------- DATA ---------------- */
+let RAW = {"# Siniestros Resp": [null, 1, 6, 5, 4, null, 3, 7, 5, null, 5, 7, 4, 1, 3, 8, 4, 5, 3, 6, 3, 4, 3, 6, 5, 6, 6], "% Siniestros Resp": [null, 0.0017, 0.0102, 0.0085, 0.0068, null, 0.0051, 0.0118, 0.0085, null, 0.0085, 0.0118, 0.0068, 0.0017, 0.0051, 0.0135, 0.0068, 0.0085, 0.0051, 0.0102, 0.0051, 0.0068, 0.0051, 0.0102, 0.0085, 0.0102, 0.0102], "Corralón": [4, 7, 6, 6, 5, null, 3, 7, 4, null, 4, 3, 3, 3, 3, 3, 5, 5, 5, 7, 5, 5, 6, 6, 6, 5, 5], "**Ope bajo score DMAS": [0.004, 0.004, 0.004, 0.004, 0.004, null, 0.004, 0.004, 0.004, null, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004, 0.004], "Operadores sin descanso > a 10 días": [1, 2, 76, 93, 81, null, 106, 96, 84, null, 102, 60, 117, 19, 26, 104, 92, 35, 33, 84, 93, 91, 109, 94, 101, 117, 115], "Licencias Vencidas": [78, 73, 65, 62, 59, null, 50, 49, 49, null, 37, 33, 27, 22, 18, 17, 16, 17, 16, 13, 9, 9, 9, 8, 3, 2, 2], "*Score Seguridad": [null, 89, 89, 89, 90, null, 89, 90, 88, null, 90, 90, 90, 87, 92, 90, 89, 90, 88, 91, 90, null, 89, 89, 89, 93, 88], "UDT Unidades de taller": [0.03, 0.028, 0.031, 0.026, 0.036, null, 0.041, 0.035, 0.04, null, 0.037, 0.033, 0.02, 0.02, 0.022, 0.025, 0.02, 0.018, 0.025, 0.022, 0.015, 0.015, 0.018, 0.018, 0.02, 0.017, 0.017], "EDF": [0.976, 0.976, 0.978, 0.971, 0.886, null, 0.797, 0.976, 0.973, null, 0.925, 0.954, 0.979, 0.982, 0.933, 0.934, 0.924, 0.973, 0.875, 0.954, 0.97, 0.972, 0.972, 0.967, 0.969, 0.971, 0.971], "PyE": [0.969, 1, 1, 1, 1, null, 1, 0.833, 1, null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], "TEF": [50, 51, 50, 55, 51, null, 54, 43, 53, null, 42, 46, 45, 56, 56, 45, 55, 55, 53, 55, 55, 55, 54, 53, 54, 54, 54], "Cobertura (HC cubierto)": [1, 1, 1, 1, 1, null, 1, 1, 1, null, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0.99, 0.99, 0.96, 0.96, 0.95, 0.95], "Rotación": [0.018, 0.016, 0.018, 0.016, 0.016, null, 0.016, 0.016, 0.016, null, 0.018, 0.018, 0.017, 0.017, 0.015, 0.015, 0.015, 0.015, 0.017, 0.019, 0.019, 0.022, 0.019, 0.029, 0.016, 0.019, 0.016], "Altas": [4, 16, 6, 10, 12, null, 10, 11, 13, null, 10, 9, 7, 6, 11, 9, 13, 9, 13, 6, 11, 5, 15, 13, 10, 6, 11], "Bajas": [11, 12, 11, 13, 14, null, 12, 11, 11, null, 12, 12, 11, 10, 10, 9, 10, 9, 10, 11, 11, 13, 15, 17, 9, 11, 9], "*Capacitación": [1.12, 1.12, 1.12, 1.12, 1.12, null, 1.12, 1.12, 1.12, null, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.09, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.12, 1.09, 0.91], "*Viajes Ok": [null, 0.93, 0.95, 0.95, 0.95, null, 0.93, 0.94, 0.93, null, 0.93, 0.92, 0.91, 0.91, 0.9, 0.9, 0.89, 0.92, 0.93, 0.94, 0.94, 0.93, 0.94, 0.94, 0.93, 0.93, 0.93], "*Nivel de Servicio": [null, 0.98, 0.99, 0.98, 0.97, null, 0.95, 0.96, 0.96, null, 0.96, 0.96, 0.97, 0.97, 0.97, 0.96, 0.95, 0.92, 0.95, 0.95, 0.96, 0.95, 0.95, 0.94, 0.95, 0.91, 0.97], "*Productividad de Flota": [null, 0.93, 0.92, 0.94, 0.94, null, 0.94, 0.91, 0.94, null, 0.94, 0.94, 0.95, 0.96, 0.96, 0.95, 0.95, 0.96, 0.96, 0.96, 0.96, 0.96, 0.96, 0.95, 0.96, 0.96, 0.96], "*Indice KM Mov SV no PI": [null, 0.09, 0.06, 0.05, 0.05, null, 0.05, 0.05, 0.06, null, 0.06, 0.06, 0.05, 0.05, 0.06, 0.05, 0.05, 0.04, 0.05, 0.06, 0.05, 0.05, 0.05, 0.04, 0.04, 0.05, 0.05], "*Integridad Tec. a bordo": [null, 0.8, 0.899, 0.883, 0.882, null, 0.883, 0.884, 0.878, null, 0.86, 0.853, 0.886, 0.906, 0.893, 0.867, 0.865, 0.854, 0.834, 0.831, 0.863, 0.901, 0.874, 0.868, 0.888, 0.878, 0.867], "Quejas": [null, 11, 19, 17, 20, null, 12, 11, 10, null, 23, 7, 21, 5, 26, 24, 32, 14, 23, 14, 19, 19, 39, 19, 29, 27, 20], "Quejas Abiertas": [null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, 2], "Rutas Tiradas": [null, null, 1, null, null, null, null, null, null, null, 1, null, null, null, null, null, null, null, 1, null, null, null, 1, 1, null, 2, null], "Calificacion NPS": [8, 9.5, 8.8, 8.6, null, null, 9, 8.8, 8.8, null, 9.4, 8, 9.6, 8.4, 9.3, 8.7, 9.8, null, 8, 8.5, null, null, null, 7, null, 9, null]}
+;
+/* RAW de arriba = última copia guardada localmente, se usa como respaldo mientras conecta o si falla la conexión */
+
+/* ---------------- CONEXIÓN A GOOGLE SHEETS ---------------- */
+const SHEET_ID = "1x42r5osR3X8WWhYMt7cFB8sICvnUff3P";
+const SHEET_TAB = "Export";
+const SHEET_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(SHEET_TAB)}`;
+
+function parseCellValue(raw){
+  if(raw === undefined || raw === null) return null;
+  let s = String(raw).trim();
+  if(s === "") return null;
+  if(s.endsWith("%")){
+    const n = parseFloat(s.replace("%","").replace(/,/g,""));
+    return isNaN(n) ? null : n/100;
+  }
+  const n = parseFloat(s.replace(/,/g,""));
+  return isNaN(n) ? null : n;
+}
+
+function parseCsvToRaw(csvText){
+  const result = Papa.parse(csvText.trim(), {skipEmptyLines:false});
+  const rows = result.data;
+  const raw = {};
+  for(let r=1; r<rows.length; r++){
+    const row = rows[r];
+    if(!row || !row.length) continue;
+    const name = (row[0]||"").toString().trim();
+    if(!name) continue;
+    raw[name] = row.slice(1).map(parseCellValue);
+  }
+  return raw;
+}
+
+function setConnStatus(state){
+  const el = document.getElementById("connStatus");
+  if(!el) return;
+  if(state === "loading"){ el.textContent = "● Conectando a Sheets…"; el.style.color = "var(--advertencia)"; }
+  else if(state === "ok"){ el.textContent = "● Conectado a Google Sheets"; el.style.color = "var(--positivo)"; }
+  else { el.textContent = "● Sin conexión (copia local)"; el.style.color = "var(--negativo)"; }
+}
+
+async function loadFromSheet(showFeedback){
+  setConnStatus("loading");
+  try{
+    const res = await fetch(SHEET_CSV_URL, {cache:"no-store"});
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    const csvText = await res.text();
+    const newRaw = parseCsvToRaw(csvText);
+    if(Object.keys(newRaw).length === 0) throw new Error("La hoja no devolvió indicadores");
+    RAW = newRaw;
+    activeCat = "Todos";
+    renderAll();
+    setConnStatus("ok");
+  }catch(err){
+    console.error("No se pudo cargar desde Google Sheets:", err);
+    setConnStatus("error");
+    if(showFeedback){
+      alert("No se pudo conectar con Google Sheets. Verifica que la hoja siga compartida como \"Cualquiera con el enlace\" y que la pestaña se siga llamando \""+SHEET_TAB+"\".\n\nMostrando la última copia guardada.\n\nDetalle: "+err.message);
+    }
+  }
+}
+
+const META = {
+ "# Siniestros Resp": {cat:"Seguridad", hb:false, fmt:"int"},
+ "% Siniestros Resp": {cat:"Seguridad", hb:false, fmt:"pct"},
+ "Corralón": {cat:"Seguridad", hb:false, fmt:"int"},
+ "**Ope bajo score DMAS": {cat:"Seguridad", hb:false, fmt:"pct"},
+ "Operadores sin descanso > a 10 días": {cat:"Seguridad", hb:false, fmt:"int"},
+ "Licencias Vencidas": {cat:"Seguridad", hb:false, fmt:"int"},
+ "*Score Seguridad": {cat:"Seguridad", hb:true, fmt:"pct0"},
+ "UDT Unidades de taller": {cat:"Operación", hb:false, fmt:"pct"},
+ "EDF": {cat:"Operación", hb:true, fmt:"pct"},
+ "PyE": {cat:"Operación", hb:true, fmt:"pct"},
+ "TEF": {cat:"Operación", hb:true, fmt:"pct0"},
+ "Cobertura (HC cubierto)": {cat:"Personal", hb:true, fmt:"pct"},
+ "Rotación": {cat:"Personal", hb:false, fmt:"pct"},
+ "Altas": {cat:"Personal", hb:null, fmt:"int"},
+ "Bajas": {cat:"Personal", hb:null, fmt:"int"},
+ "*Capacitación": {cat:"Personal", hb:true, fmt:"pct"},
+ "*Viajes Ok": {cat:"Servicio", hb:true, fmt:"pct"},
+ "*Nivel de Servicio": {cat:"Servicio", hb:true, fmt:"pct"},
+ "*Productividad de Flota": {cat:"Servicio", hb:true, fmt:"pct"},
+ "*Indice KM Mov SV no PI": {cat:"Servicio", hb:false, fmt:"pct"},
+ "*Integridad Tec. a bordo": {cat:"Servicio", hb:true, fmt:"pct"},
+ "Quejas": {cat:"Satisfacción", hb:false, fmt:"int"},
+ "Quejas Abiertas": {cat:"Satisfacción", hb:false, fmt:"int"},
+ "Rutas Tiradas": {cat:"Satisfacción", hb:false, fmt:"int"},
+ "Calificacion NPS": {cat:"Satisfacción", hb:true, fmt:"dec1"}
+};
+
+const CAT_COLORS = {
+  "Seguridad":"#FF6B6B","Operación":"#4DA6FF","Personal":"#FFA94D","Servicio":"#3ED598","Satisfacción":"#C88CFF"
+};
+
+let indicators = []; // computed objects
+let weekLabels = [];
+let activeCat = "Todos";
+let charts = {}; // mini sparkline chart instances
+let modalChartInstance = null;
+
+function cleanLabel(name){ return name.replace(/^\*+/, "").trim(); }
+
+function fmtValue(v, fmt){
+  if(v === null || v === undefined || isNaN(v)) return "—";
+  switch(fmt){
+    case "pct": return (v*100).toFixed(1)+"%";
+    case "pct0": return Math.round(v)+"%";
+    case "int": return Math.round(v).toString();
+    case "dec1": return v.toFixed(1);
+    default: return v.toString();
+  }
+}
+
+function computeTrend(values){
+  const valid = values.map((v,i)=>({i,v})).filter(o=>o.v!==null && o.v!==undefined && !isNaN(o.v));
+  if(valid.length < 4){
+    return {status:"insuf", current: valid.length? valid[valid.length-1].v : null, deltaPct:null};
+  }
+  const n = valid.length;
+  const windowSize = Math.max(2, Math.min(6, Math.floor(n/2)));
+  const recent = valid.slice(-windowSize);
+  const prior = valid.slice(-2*windowSize, -windowSize);
+  const avg = arr => arr.reduce((s,o)=>s+o.v,0)/arr.length;
+  const recentAvg = avg(recent);
+  const priorAvg = prior.length ? avg(prior) : recentAvg;
+  let deltaPct;
+  if(Math.abs(priorAvg) < 1e-9){
+    deltaPct = Math.abs(recentAvg) < 1e-9 ? 0 : (recentAvg>0 ? 100 : -100);
+  } else {
+    deltaPct = ((recentAvg-priorAvg)/Math.abs(priorAvg))*100;
+  }
+  return {status:"ok", current: valid[valid.length-1].v, recentAvg, priorAvg, deltaPct};
+}
+
+function classify(trend, hb){
+  if(trend.status !== "ok") return "flat";
+  if(Math.abs(trend.deltaPct) < 3) return "flat";
+  if(hb === null || hb === undefined) return "flat"; // neutral indicators shown gray
+  const improving = hb ? trend.deltaPct > 0 : trend.deltaPct < 0;
+  return improving ? "up" : "down";
+}
+
+function buildIndicators(){
+  indicators = [];
+  const names = Object.keys(RAW);
+  weekLabels = [];
+  const maxLen = Math.max(...names.map(n=>RAW[n].length));
+  for(let i=0;i<maxLen;i++) weekLabels.push("S"+(i+1));
+
+  names.forEach(name=>{
+    const meta = META[name] || {cat:"Otros", hb:null, fmt:"dec1"};
+    const values = RAW[name];
+    const trend = computeTrend(values);
+    const cls = classify(trend, meta.hb);
+    indicators.push({
+      name, label: cleanLabel(name), cat: meta.cat, hb: meta.hb, fmt: meta.fmt,
+      values, trend, cls
+    });
+  });
+}
+
+/* ---------------- RENDER ---------------- */
+function renderAll(){
+  buildIndicators();
+  document.getElementById("rangeLabel").textContent =
+    `Cubre ${weekLabels[0]} a ${weekLabels[weekLabels.length-1]} · ${indicators.length} indicadores`;
+  document.getElementById("updatedNote").textContent =
+    "Actualizado: " + new Date().toLocaleString('es-MX', {dateStyle:'medium', timeStyle:'short'});
+
+  renderSummary();
+  renderHighlights();
+  renderTabs();
+  renderGrid();
+}
+
+function renderSummary(){
+  const total = indicators.length;
+  const pos = indicators.filter(i=>i.cls==="up").length;
+  const neg = indicators.filter(i=>i.cls==="down").length;
+  const neu = total - pos - neg;
+  document.getElementById("sTotal").textContent = total;
+  document.getElementById("sPos").textContent = pos;
+  document.getElementById("sNeg").textContent = neg;
+  document.getElementById("sNeu").textContent = neu;
+}
+
+function renderHighlights(){
+  const withDelta = indicators.filter(i=>i.trend.status==="ok" && i.hb!==null && i.hb!==undefined);
+  const scored = withDelta.map(i=>{
+    const improvement = i.hb ? i.trend.deltaPct : -i.trend.deltaPct;
+    return {...i, improvement};
+  });
+  const up = scored.filter(i=>i.improvement>0).sort((a,b)=>b.improvement-a.improvement).slice(0,3);
+  const down = scored.filter(i=>i.improvement<0).sort((a,b)=>a.improvement-b.improvement).slice(0,3);
+
+  document.getElementById("hlUp").innerHTML = up.length ? up.map(i=>`
+    <div class="hl-item up" onclick="openModal('${encodeURIComponent(i.name)}')">
+      <span>${i.label}</span><span class="delta">+${Math.abs(i.trend.deltaPct).toFixed(1)}%</span>
+    </div>`).join("") : `<div class="hl-item">Sin cambios positivos relevantes</div>`;
+
+  document.getElementById("hlDown").innerHTML = down.length ? down.map(i=>`
+    <div class="hl-item down" onclick="openModal('${encodeURIComponent(i.name)}')">
+      <span>${i.label}</span><span class="delta">-${Math.abs(i.trend.deltaPct).toFixed(1)}%</span>
+    </div>`).join("") : `<div class="hl-item">Sin deterioros relevantes</div>`;
+}
+
+function renderTabs(){
+  const cats = ["Todos", ...new Set(indicators.map(i=>i.cat))];
+  const tabsEl = document.getElementById("tabs");
+  tabsEl.innerHTML = cats.map(c=>`<button class="tab ${c===activeCat?'active':''}" data-cat="${c}">${c}</button>`).join("");
+  tabsEl.querySelectorAll(".tab").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      activeCat = btn.dataset.cat;
+      renderTabs();
+      renderGrid();
+    });
+  });
+}
+
+function getFilteredSorted(){
+  const search = document.getElementById("searchBox").value.trim().toLowerCase();
+  const sortVal = document.getElementById("sortSelect").value;
+  let list = indicators.filter(i => (activeCat==="Todos" || i.cat===activeCat) &&
+                                     i.label.toLowerCase().includes(search));
+  const deltaSigned = i => i.trend.status==="ok" ? (i.hb ? i.trend.deltaPct : (i.hb===false ? -i.trend.deltaPct : 0)) : -9999;
+  if(sortVal==="deltaDesc") list.sort((a,b)=>deltaSigned(b)-deltaSigned(a));
+  else if(sortVal==="deltaAsc") list.sort((a,b)=>deltaSigned(a)-deltaSigned(b));
+  else if(sortVal==="alpha") list.sort((a,b)=>a.label.localeCompare(b.label));
+  else if(sortVal==="cat") list.sort((a,b)=>a.cat.localeCompare(b.cat) || a.label.localeCompare(b.label));
+  return list;
+}
+
+function renderGrid(){
+  const list = getFilteredSorted();
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  Object.values(charts).forEach(c=>c.destroy());
+  charts = {};
+
+  list.forEach(ind=>{
+    const card = document.createElement("div");
+    card.className = "card " + ind.cls;
+    card.onclick = ()=>openModal(encodeURIComponent(ind.name));
+
+    const currentVal = fmtValue(ind.trend.current, ind.fmt);
+    let deltaHtml;
+    if(ind.trend.status !== "ok"){
+      deltaHtml = `<div class="nodata">Datos insuficientes</div>`;
+    } else {
+      const arrow = ind.cls==="up" ? "▲" : ind.cls==="down" ? "▼" : "▬";
+      deltaHtml = `<div class="delta">${arrow} ${Math.abs(ind.trend.deltaPct).toFixed(1)}%</div>`;
+    }
+
+    card.innerHTML = `
+      <div class="cat" style="color:${CAT_COLORS[ind.cat]||'#9FC6B6'}">${ind.cat}</div>
+      <div class="name">${ind.label}</div>
+      <div class="row">
+        <div class="value">${currentVal}</div>
+        ${deltaHtml}
+      </div>
+      <canvas id="spark_${btoa(unescape(encodeURIComponent(ind.name))).replace(/[^a-zA-Z0-9]/g,'')}"></canvas>
+    `;
+    grid.appendChild(card);
+
+    const canvasId = "spark_"+btoa(unescape(encodeURIComponent(ind.name))).replace(/[^a-zA-Z0-9]/g,'');
+    requestAnimationFrame(()=>{
+      const ctx = document.getElementById(canvasId);
+      if(!ctx) return;
+      const color = ind.cls==="up" ? "#3ED598" : ind.cls==="down" ? "#FF6B6B" : "#9FC6B6";
+      charts[ind.name] = new Chart(ctx, {
+        type:'line',
+        data:{
+          labels: weekLabels,
+          datasets:[{
+            data: ind.values.map(v=>v===null?null:v),
+            borderColor: color,
+            backgroundColor: color+"22",
+            fill:true,
+            tension:0.35,
+            pointRadius:0,
+            borderWidth:2,
+            spanGaps:true
+          }]
+        },
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          animation:false,
+          scales:{x:{display:false},y:{display:false}},
+          plugins:{legend:{display:false},tooltip:{enabled:false}}
+        }
+      });
+    });
+  });
+
+  if(list.length===0){
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;color:var(--texto-tenue);padding:30px;">No se encontraron indicadores con ese filtro.</div>`;
+  }
+}
+
+/* ---------------- MODAL ---------------- */
+let currentModalIndicator = null;
+let trendlineOn = false;
+
+function linearRegression(values){
+  const pts = values.map((v,i)=>({x:i,v})).filter(o=>o.v!==null && o.v!==undefined && !isNaN(o.v));
+  if(pts.length < 2) return null;
+  const n = pts.length;
+  const sumX = pts.reduce((s,o)=>s+o.x,0);
+  const sumY = pts.reduce((s,o)=>s+o.v,0);
+  const sumXY = pts.reduce((s,o)=>s+o.x*o.v,0);
+  const sumXX = pts.reduce((s,o)=>s+o.x*o.x,0);
+  const denom = (n*sumXX - sumX*sumX);
+  if(denom === 0) return null;
+  const slope = (n*sumXY - sumX*sumY)/denom;
+  const intercept = (sumY - slope*sumX)/n;
+  const firstIdx = pts[0].x, lastIdx = pts[pts.length-1].x;
+  return {slope, intercept, firstIdx, lastIdx};
+}
+
+function buildTrendlineData(ind){
+  const reg = linearRegression(ind.values);
+  if(!reg) return null;
+  return weekLabels.map((_,i)=>{
+    if(i < reg.firstIdx || i > reg.lastIdx) return null;
+    return reg.slope*i + reg.intercept;
+  });
+}
+
+function baseDataset(ind, color){
+  return {
+    label: ind.label,
+    data: ind.values,
+    borderColor: color,
+    backgroundColor: color+"22",
+    fill:true,
+    tension:0.3,
+    pointRadius:3,
+    pointBackgroundColor: color,
+    borderWidth:2,
+    spanGaps:true,
+    datalabels:{display:true}
+  };
+}
+
+function trendDataset(ind){
+  const data = buildTrendlineData(ind);
+  return {
+    label: "Tendencia",
+    data: data,
+    borderColor: "#FFA94D",
+    backgroundColor: "transparent",
+    borderDash:[7,5],
+    borderWidth:2,
+    pointRadius:0,
+    fill:false,
+    tension:0,
+    spanGaps:true,
+    datalabels:{display:false}
+  };
+}
+
+function openModal(encName){
+  const name = decodeURIComponent(encName);
+  const ind = indicators.find(i=>i.name===name);
+  if(!ind) return;
+  currentModalIndicator = ind;
+  trendlineOn = false;
+  updateTrendBtn();
+
+  document.getElementById("modalCat").textContent = ind.cat;
+  document.getElementById("modalTitle").textContent = ind.label;
+
+  let polarityText = "";
+  if(ind.hb === true) polarityText = "Mejor cuando el valor sube.";
+  else if(ind.hb === false) polarityText = "Mejor cuando el valor baja.";
+  else polarityText = "Indicador informativo, sin dirección única de mejora.";
+  document.getElementById("modalPolarity").textContent = polarityText;
+
+  const statsEl = document.getElementById("modalStats");
+  if(ind.trend.status==="ok"){
+    const arrow = ind.cls==="up" ? "▲" : ind.cls==="down" ? "▼" : "▬";
+    const color = ind.cls==="up" ? "var(--positivo)" : ind.cls==="down" ? "var(--negativo)" : "var(--neutro)";
+    statsEl.innerHTML = `
+      <div>Valor actual<b>${fmtValue(ind.trend.current, ind.fmt)}</b></div>
+      <div>Promedio reciente<b>${fmtValue(ind.trend.recentAvg, ind.fmt)}</b></div>
+      <div>Promedio previo<b>${fmtValue(ind.trend.priorAvg, ind.fmt)}</b></div>
+      <div>Cambio<b style="color:${color}">${arrow} ${Math.abs(ind.trend.deltaPct).toFixed(1)}%</b></div>
+    `;
+  } else {
+    statsEl.innerHTML = `<div>Valor actual<b>${fmtValue(ind.trend.current, ind.fmt)}</b></div><div>No hay suficientes semanas con dato para calcular tendencia.</div>`;
+  }
+
+  const trendBtn = document.getElementById("trendBtn");
+  const reg = linearRegression(ind.values);
+  trendBtn.style.display = reg ? "inline-block" : "none";
+
+  const ctx = document.getElementById("modalChart");
+  if(modalChartInstance) modalChartInstance.destroy();
+  const color = ind.cls==="up" ? "#3ED598" : ind.cls==="down" ? "#FF6B6B" : "#9FC6B6";
+  modalChartInstance = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: weekLabels,
+      datasets:[baseDataset(ind, color)]
+    },
+    options:{
+      responsive:true,
+      layout:{padding:{top:22}},
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label: c=> `${c.dataset.label}: ${fmtValue(c.raw, ind.fmt)}`}},
+        datalabels:{
+          align:'top',
+          anchor:'end',
+          offset:4,
+          color:'#EAF6F0',
+          font:{size:10, weight:'600'},
+          formatter: v => v===null || v===undefined ? '' : fmtValue(v, ind.fmt)
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#9FC6B6', maxRotation:0, autoSkip:true, maxTicksLimit:14}, grid:{color:'rgba(255,255,255,.05)'}},
+        y:{ticks:{color:'#9FC6B6', callback:v=>fmtValue(v, ind.fmt)}, grid:{color:'rgba(255,255,255,.07)'}}
+      }
+    }
+  });
+
+  document.getElementById("modalOverlay").classList.add("show");
+}
+
+function toggleTrendline(){
+  if(!currentModalIndicator || !modalChartInstance) return;
+  trendlineOn = !trendlineOn;
+  updateTrendBtn();
+  if(trendlineOn){
+    modalChartInstance.data.datasets.push(trendDataset(currentModalIndicator));
+  } else {
+    modalChartInstance.data.datasets = modalChartInstance.data.datasets.filter(d=>d.label!=="Tendencia");
+  }
+  modalChartInstance.update();
+}
+
+function updateTrendBtn(){
+  const btn = document.getElementById("trendBtn");
+  if(!btn) return;
+  btn.textContent = trendlineOn ? "／ Quitar línea de tendencia" : "／ Mostrar línea de tendencia";
+  btn.classList.toggle("active", trendlineOn);
+}
+
+function closeModal(){ document.getElementById("modalOverlay").classList.remove("show"); }
+document.getElementById("modalOverlay").addEventListener("click", e=>{
+  if(e.target.id==="modalOverlay") closeModal();
+});
+
+/* ---------------- CONTROLS ---------------- */
+document.getElementById("searchBox").addEventListener("input", renderGrid);
+document.getElementById("sortSelect").addEventListener("change", renderGrid);
+
+/* ---------------- EXCEL REFRESH ---------------- */
+document.getElementById("fileInput").addEventListener("change", function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const wb = XLSX.read(evt.target.result, {type:'array'});
+      const sheetName = wb.SheetNames.includes("Export") ? "Export" : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+      const newRaw = {};
+      for(let r=1; r<rows.length; r++){
+        const row = rows[r];
+        const name = row[0];
+        if(!name) continue;
+        const vals = row.slice(1).map(v => (v===null || v==="") ? null : Number(v));
+        newRaw[name] = vals;
+      }
+      RAW = newRaw;
+      activeCat = "Todos";
+      renderAll();
+      alert("Datos actualizados correctamente desde " + file.name);
+    }catch(err){
+      alert("No se pudo leer el archivo. Verifica que tenga la hoja 'Export' con el mismo formato (Indicador + Semanas). Detalle: " + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+/* ---------------- INIT ---------------- */
+renderAll();          // pinta de inmediato con la última copia guardada
+loadFromSheet(false);  // intenta traer datos frescos de Google Sheets sin bloquear la carga
+</script>
+</body>
+</html>
